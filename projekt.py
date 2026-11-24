@@ -132,8 +132,3 @@ sys.exit(app.exec())
 
 
 
-# Wyświetlenie okna
-window.show()
-
-# Uruchomienie pętli aplikacji
-sys.exit(app.exec())
