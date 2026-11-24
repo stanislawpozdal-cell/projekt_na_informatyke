@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+
+</head>
+
+<body>
+
+    <h1>Moja aplikacja</h1>
+
+    <button onclick="test()">
+        Wywołaj Pythona
+    </button>
+    <form action="">
+        <input type="text" name="" id="nazwa" required>
+        <label for="nazwa">nazwa</label>
+        <input type="number" name="" required id="cena_f">
+        <label for="cena_f">Kwota</label>
+        <button id="submit1" type="submit" >dodaj</button>
+    </form>
+    
+
+    <div id="wydatki">
+
+    </div>
+
+
+
+
+</body>
+</html>
+
+<script>
+
+let backend;
+
+new QWebChannel(qt.webChannelTransport, function(channel) {
+    backend = channel.objects.backend;
+    test1();
+});
+
+function test() {
+    backend.test();
+}
+
+function test1() {
+    backend.return_data("wydatki", function(wyniki) {
+
+        const kontener = document.getElementById("wydatki");
+        kontener.innerHTML = "";
+
+        wyniki.forEach(function(wydatek) {
+
+            const element = document.createElement("div");
+
+            const nazwa = document.createElement("h3");
+            nazwa.textContent = wydatek[1];
+
+            const kwota = document.createElement("p");
+            kwota.textContent = `Kwota: ${wydatek[2]} zł`;
+
+            const data = document.createElement("p");
+            data.textContent = `Data: ${wydatek[3]}`;
+
+            const button = document.createElement("button");
+            button.textContent = "Usuń";
+
+            button.onclick = function() {
+                delate("wydatki", wydatek[0]);
+            };
+
+            element.appendChild(nazwa);
+            element.appendChild(kwota);
+            element.appendChild(data);
+            element.appendChild(button);
+
+            kontener.appendChild(element);
+        });
+    });
+}
+
+// Usuwanie wydatku
+function delate(tabela, id) {
+    backend.del_data(tabela, id, function(sukces) {
+        if (sukces) {
+            test1();
+        }
+    });
+}
+
+// Dodawanie wydatku
+const id_submit = document.getElementById("submit1");
+
+id_submit.addEventListener("submit", function() {
+
+    const nazwa = document.getElementById("nazwa").value;
+    const cena = parseFloat(document.getElementById("cena_f").value);
+
+    backend.dodaj_wydatek(nazwa, cena, function(gut) {
+        if (gut) {
+            test1();
+
+            document.getElementById("nazwa").value = "";
+            document.getElementById("cena_f").value = "";
+        }
+    });
+});
+    
+</script>
