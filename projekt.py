@@ -36,11 +36,22 @@ class Backend(QObject):
         name TEXT NOT NULL,
         kwota DOUBLE NOT NULL,
         data DATE NOT NULL)""")
+        self.conn.commit()
+
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS przychody(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        kwota DOUBLE NOT NULL,
+        podatek DECIMAL ,
+        data DATE NOT NULL)""")
+        self.conn.commit()
+        
 
     @Slot(str,int,result=bool)
     def del_data(self,tabela, id):
         print(tabela, id)
-        dozwolone_tabele = ["wydatki"]
+        dozwolone_tabele = ["wydatki","przychody"]
 
         if tabela  in dozwolone_tabele:
             self.cursor.execute(f"DELETE FROM {tabela} WHERE id={id}")
@@ -48,10 +59,46 @@ class Backend(QObject):
             return True
         else:
             return False
+    @Slot(str,float,float,result=bool)
+    def dodaj_przychod(self,name,kwota,podatek):
+        print(name,kwota,podatek)
+        try:
+            self.cursor.execute("""
+            INSERT INTO przychody (name,kwota,podatek,data)
+            VALUES (?,?,?,?)""",(name,kwota,podatek,date.today().isoformat()))
+            self.conn.commit()
+            return True
+        except:
+            return False
+
+    @Slot(str, str, str, result="QVariantList")
+    def filtruj(self, rok, miesiac, typ):
+
+        kolumny = {
+            "wydatki": "data",
+            "przychody": "data"
+        }
+
+        if typ not in kolumny:
+            return []
+
+        self.cursor.execute(
+            f"""
+            SELECT * FROM {typ}
+            WHERE strftime('%Y', data) = ?
+            AND strftime('%m', data) = ?
+            ORDER BY data DESC
+            """,
+            (rok, miesiac.zfill(2))
+        )
+
+        return [list(x) for x in self.cursor.fetchall()]
+
+
 
     @Slot(str, result="QVariantList")
     def return_data(self, tabela):
-        dozwolone_tabele = ["wydatki"]
+        dozwolone_tabele = ["wydatki","przychody"]
 
         if tabela not in dozwolone_tabele:
             return []
@@ -59,8 +106,11 @@ class Backend(QObject):
         self.cursor.execute(f"SELECT * FROM {tabela} ORDER BY data DESC, id DESC")
 
         wyniki = self.cursor.fetchall()
+        print(wyniki)
 
-        return [list(row) for row in wyniki]
+
+
+        return [list(row) for row  in wyniki]
 
     @Slot(str,float,result=bool)
     def dodaj_wydatek(self,name, kwota):

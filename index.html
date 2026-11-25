@@ -15,18 +15,69 @@
     <button onclick="test()">
         Wywołaj Pythona
     </button>
-    <form action="">
+    <form action="" id="formularz" >
         <input type="text" name="" id="nazwa" required>
         <label for="nazwa">nazwa</label>
         <input type="number" name="" required id="cena_f">
         <label for="cena_f">Kwota</label>
+        <select name="" id="typ">
+            <option selected value="wydatki">wydatek</option>
+            <option value="przychody">przychód</option>
+        </select>
+        <label for="typ">wybierz typ wydatek lub przychód</label>
+        <input type="number" name="" id="podatek">
+        <label for="podatek">wpisz wartość podatku [%]</label>
         <button id="submit1" type="submit" >dodaj</button>
+    </form>
+    <br>
+    <br>
+    <br>
+    <br>
+
+    <form id="filtr">
+
+        <label for="rok">Rok:</label>
+        <select id="rok" name="rok">
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026" selected>2026</option>
+            <option value="2027">2027</option>
+        </select>
+
+        <label for="miesiac">Miesiąc:</label>
+        <select id="miesiac" name="miesiac">
+            <option value="1">Styczeń</option>
+            <option value="2">Luty</option>
+            <option value="3">Marzec</option>
+            <option value="4">Kwiecień</option>
+            <option value="5">Maj</option>
+            <option value="6">Czerwiec</option>
+            <option value="7">Lipiec</option>
+            <option value="8">Sierpień</option>
+            <option value="9">Wrzesień</option>
+            <option value="10">Październik</option>
+            <option value="11">Listopad</option>
+            <option value="12">Grudzień</option>
+        </select>
+
+        <select name="" id="filtr_typ">
+            <option value="wydatki">Wydatki</option>
+            <option value="przychody">przychody</option>
+            <option selected value="all">przychody i wydatki</option>
+        </select>
+
+        <button type="submit">Filtruj</button>
+
     </form>
     
 
     <div id="wydatki">
 
     </div>
+
+    <div id="przychody" ></div>
+
+    <div id="all" ></div>
 
 
 
@@ -40,17 +91,31 @@ let backend;
 
 new QWebChannel(qt.webChannelTransport, function(channel) {
     backend = channel.objects.backend;
-    test1();
+    test1("wydatki");
+    test1("przychody")
 });
 
 function test() {
     backend.test();
 }
 
-function test1() {
-    backend.return_data("wydatki", function(wyniki) {
 
-        const kontener = document.getElementById("wydatki");
+function test1(typ, data = false) {
+
+    function renderuj(wyniki) {
+
+        let kontener;
+
+        if (typ === "wydatki") {
+            kontener = document.getElementById("wydatki");
+        }
+        else if (typ === "przychody") {
+            kontener = document.getElementById("przychody");
+        }
+        else {
+            return;
+        }
+
         kontener.innerHTML = "";
 
         wyniki.forEach(function(wydatek) {
@@ -60,54 +125,139 @@ function test1() {
             const nazwa = document.createElement("h3");
             nazwa.textContent = wydatek[1];
 
+            const dataElement = document.createElement("p");
+            const podatek = document.createElement("p");
+
+            if (typ === "wydatki") {
+                dataElement.textContent = `Data: ${wydatek[3]}`;
+            }
+            else if (typ === "przychody") {
+                podatek.textContent = `Podatek: ${wydatek[3]}%`;
+                dataElement.textContent = `Data: ${wydatek[4]}`;
+            }
+
+            const typ_w = document.createElement("p");
+            typ_w.textContent = `Typ: ${typ}`;
+
             const kwota = document.createElement("p");
             kwota.textContent = `Kwota: ${wydatek[2]} zł`;
-
-            const data = document.createElement("p");
-            data.textContent = `Data: ${wydatek[3]}`;
 
             const button = document.createElement("button");
             button.textContent = "Usuń";
 
             button.onclick = function() {
-                delate("wydatki", wydatek[0]);
+                delate(typ, wydatek[0]);
             };
 
             element.appendChild(nazwa);
+            element.appendChild(typ_w);
             element.appendChild(kwota);
-            element.appendChild(data);
+
+            if (typ === "przychody") {
+                element.appendChild(podatek);
+            }
+
+            element.appendChild(dataElement);
             element.appendChild(button);
 
             kontener.appendChild(element);
         });
-    });
+    }
+
+    // Jeśli przekazano dane, nie pobieramy ich ponownie.
+    if (data !== false) {
+        renderuj(data);
+    }
+    else {
+        backend.return_data(typ, function(wyniki) {
+            renderuj(wyniki);
+        });
+    }
 }
+
 
 // Usuwanie wydatku
 function delate(tabela, id) {
     backend.del_data(tabela, id, function(sukces) {
         if (sukces) {
-            test1();
+            test1(tabela);
         }
     });
 }
 
 // Dodawanie wydatku
-const id_submit = document.getElementById("submit1");
+const id_submit = document.getElementById("formularz");
 
-id_submit.addEventListener("submit", function() {
-
+id_submit.addEventListener("submit", function(event) {
+    event.preventDefault()
     const nazwa = document.getElementById("nazwa").value;
     const cena = parseFloat(document.getElementById("cena_f").value);
+    const typ = document.getElementById("typ").value;
+    const podatek = parseFloat(document.getElementById("podatek").value);
 
-    backend.dodaj_wydatek(nazwa, cena, function(gut) {
-        if (gut) {
-            test1();
+    if (typ === "wydatki"){
+        backend.dodaj_wydatek(nazwa, cena, function(gut) {
+            if (gut) {
+                test1(typ);
 
-            document.getElementById("nazwa").value = "";
-            document.getElementById("cena_f").value = "";
-        }
-    });
+                document.getElementById("nazwa").value = "";
+                document.getElementById("cena_f").value = "";
+            }
+        });
+    }
+    else if (typ === "przychody"){
+        backend.dodaj_przychod(nazwa,cena,podatek,function(gut){
+            if (gut){
+                test1(typ);
+                document.getElementById("nazwa").value = "";
+                document.getElementById("cena_f").value = "";
+                document.getElementById("podatek").value = '';
+
+            }
+        })
+
+    }
+
+   
 });
+
+
+document.getElementById("filtr").addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const rok = document.getElementById("rok").value;
+    const miesiac = document.getElementById("miesiac").value;
+    const typ = document.getElementById("filtr_typ").value;
+
+    function pobierz(tabela) {
+        return new Promise(function(resolve) {
+            backend.filtruj(rok, miesiac, tabela, function(wyniki) {
+                resolve(wyniki);
+            });
+        });
+    }
+
+    if (typ === "wydatki" || typ === "przychody") {
+        pobierz(typ).then(function(wyniki) {
+            test1(typ, wyniki);
+        });
+    }
+
+    else if (typ === "all") {
+        Promise.all([
+            pobierz("wydatki"),
+            pobierz("przychody")
+        ]).then(function(wyniki) {
+
+            const wydatki = wyniki[0];
+            const przychody = wyniki[1];
+
+            test1("wydatki", wydatki);
+            test1("przychody", przychody);
+
+        });
+    }
+});
+
     
 </script>
