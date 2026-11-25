@@ -30,7 +30,8 @@
         <button id="submit1" type="submit" >dodaj</button>
     </form>
 
-    <button type="button" onclick="genruj_wykres_slupkowy(2026)" >generuj wykres wydatków </button>
+    <button type="button" onclick="genruj_wykres_slupkowy_rok(2026)" >generuj wykres wydatków (rok)</button>
+    <button type="button" onclick="genruj_wykres_slupkowy_miesiac(2026,11)" >generuj wykres wydatków (miesiac) </button>
     <br>
     <br>
     <br>
@@ -292,8 +293,20 @@ document.getElementById("filtr").addEventListener("submit", function(event) {
 
 });
 
-function genruj_wykres_slupkowy(rok){
-    backend.generuj_wykres_slupkowy(rok,function (gut){
+function genruj_wykres_slupkowy_rok(rok){
+    backend.generuj_wykres_slupkowy_rok(rok,function (gut){
+        if (gut === true){
+            const kontener = document.getElementById("z");
+            const i = document.createElement("img")
+            i.src = "./wykresy/wykres.png"
+            kontener.appendChild(i);
+        }
+    })
+
+}
+
+function genruj_wykres_slupkowy_miesiac(rok,miesiac){
+    backend.generuj_wykres_slupkowy_miesiac(rok,miesiac,function (gut){
         if (gut === true){
             const kontener = document.getElementById("z");
             const i = document.createElement("img")

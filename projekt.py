@@ -123,29 +123,39 @@ class Backend(QObject):
     def test(self):
         print("wywołanie funkcji")
 
-    def oblicz(self, rok, tabela):
+    def oblicz(self, rok, tabela,miesiac=None):
         buffer = []
 
         if tabela not in ["wydatki", "przychody"]:
             return []
+        if miesiac is None:
 
-        for i in range(1, 13):
+            for i in range(1, 13):
+                self.cursor.execute(f"""
+                    SELECT * FROM {tabela}
+                    WHERE strftime('%Y', data) = ?
+                    AND strftime('%m', data) = ?
+                    ORDER BY data DESC
+                """, (str(rok), str(i).zfill(2)))
+
+                buffer.append(sum(x[2] for x in self.cursor.fetchall()))
+
+            return buffer
+        else:
             self.cursor.execute(f"""
-                SELECT * FROM {tabela}
-                WHERE strftime('%Y', data) = ?
-                AND strftime('%m', data) = ?
-                ORDER BY data DESC
-            """, (str(rok), str(i).zfill(2)))
+                                SELECT * FROM {tabela}
+                                WHERE strftime('%Y', data) = ?
+                                AND strftime('%m', data) = ?
+                                ORDER BY data DESC
+                            """, (str(rok), str(miesiac).zfill(2)))
 
-            buffer.append(sum(x[2] for x in self.cursor.fetchall()))
-
-        return buffer
+            return [sum(x[2] for x in self.cursor.fetchall())][0]
 
 
 
 
     @Slot(int,result=bool)
-    def generuj_wykres_slupkowy(self,rok):
+    def generuj_wykres_slupkowy_rok(self,rok):
         print(rok)
         miesiace_d = {1:"Styczeń",2:"Luty",3:"Marzeć",4:"Kwiecień",5:"Maj",6:"Czerwiec",7:"Lipiec",8:"Sierpień",9:"Wrzesień",10:"Październik",11:"Listopad",12:"Grudzień"}
         miesiace = list(miesiace_d.values())
@@ -174,7 +184,51 @@ class Backend(QObject):
         return True
 
 
+    @Slot(int, int, result=bool)
+    def generuj_wykres_slupkowy_miesiac(self, rok, miesiac):
+        try:
+            miesiace_d = {
+                1: "Styczeń", 2: "Luty", 3: "Marzec",
+                4: "Kwiecień", 5: "Maj", 6: "Czerwiec",
+                7: "Lipiec", 8: "Sierpień", 9: "Wrzesień",
+                10: "Październik", 11: "Listopad", 12: "Grudzień"
+            }
 
+            if miesiac not in miesiace_d:
+                return False
+
+            # Pobranie sum z bazy danych
+            wydatki = self.oblicz(rok, "wydatki", miesiac)
+            przychody = self.oblicz(rok, "przychody", miesiac)
+
+            # Pojedyncze wartości
+            x = np.arange(2)
+            wartosci = [wydatki, przychody]
+            etykiety = ["Wydatki", "Przychody"]
+
+            plt.figure(figsize=(8, 5))
+
+            slupki = plt.bar(x, wartosci, width=0.5)
+
+            # Wartości nad słupkami
+            plt.bar_label(slupki, fmt="%.2f zł", padding=5)
+
+            plt.xticks(x, etykiety)
+            plt.ylabel("Kwota (zł)")
+            plt.title(f"Przychody i wydatki – {miesiace_d[miesiac]} {rok}")
+
+            plt.grid(axis="y", alpha=0.3)
+            plt.tight_layout()
+
+            plt.savefig("./wykresy/wykres.png", dpi=150, bbox_inches="tight")
+            plt.close()
+
+            return True
+
+        except Exception as e:
+            print("Błąd generowania wykresu:", e)
+            plt.close("all")
+            return False
 
 
 #ustawienia okna
