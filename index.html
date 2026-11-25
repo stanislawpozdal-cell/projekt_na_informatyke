@@ -29,6 +29,8 @@
         <label for="podatek">wpisz wartość podatku [%]</label>
         <button id="submit1" type="submit" >dodaj</button>
     </form>
+
+    <button type="button" onclick="genruj_wykres_slupkowy(2026)" >generuj wykres wydatków </button>
     <br>
     <br>
     <br>
@@ -36,34 +38,16 @@
 
     <form id="filtr">
 
-        <label for="rok">Rok:</label>
-        <select id="rok" name="rok">
-            <option value="2024">2024</option>
-            <option value="2025">2025</option>
-            <option value="2026" selected>2026</option>
-            <option value="2027">2027</option>
-        </select>
+        <label for="data_od">Od:</label>
+        <input type="date" id="data_od" required>
 
-        <label for="miesiac">Miesiąc:</label>
-        <select id="miesiac" name="miesiac">
-            <option value="1">Styczeń</option>
-            <option value="2">Luty</option>
-            <option value="3">Marzec</option>
-            <option value="4">Kwiecień</option>
-            <option value="5">Maj</option>
-            <option value="6">Czerwiec</option>
-            <option value="7">Lipiec</option>
-            <option value="8">Sierpień</option>
-            <option value="9">Wrzesień</option>
-            <option value="10">Październik</option>
-            <option value="11">Listopad</option>
-            <option value="12">Grudzień</option>
-        </select>
+        <label for="data_do">Do:</label>
+        <input type="date" id="data_do" required>
 
-        <select name="" id="filtr_typ">
+        <select id="filtr_typ">
             <option value="wydatki">Wydatki</option>
-            <option value="przychody">przychody</option>
-            <option selected value="all">przychody i wydatki</option>
+            <option value="przychody">Przychody</option>
+            <option value="all">Wszystko</option>
         </select>
 
         <button type="submit">Filtruj</button>
@@ -78,6 +62,8 @@
     <div id="przychody" ></div>
 
     <div id="all" ></div>
+
+    <div id="z" ></div>
 
 
 
@@ -222,32 +208,60 @@ id_submit.addEventListener("submit", function(event) {
 });
 
 
-document.getElementById("filtr").addEventListener("submit", function(event) {
-    event.preventDefault();
 
-    const rok = document.getElementById("rok").value;
-    const miesiac = document.getElementById("miesiac").value;
-    const typ = document.getElementById("filtr_typ").value;
+function pobierz(tabela, data_od, data_do) {
+    return new Promise(function(resolve, reject) {
 
-    function pobierz(tabela) {
-        return new Promise(function(resolve) {
-            backend.filtruj(rok, miesiac, tabela, function(wyniki) {
-                resolve(wyniki);
-            });
+        backend.filtruj(data_od, data_do, tabela, function(wyniki) {
+            resolve(wyniki);
         });
+
+    });
+}
+
+
+function filtruj(typ, data_od, data_do) {
+
+    if (!backend) {
+        console.error("Backend nie jest jeszcze gotowy!");
+        return;
+    }
+
+    if (!data_od || !data_do) {
+        alert("Wybierz obie daty!");
+        return;
+    }
+
+    if (data_od > data_do) {
+        alert("Data początkowa nie może być późniejsza od końcowej!");
+        return;
     }
 
     if (typ === "wydatki" || typ === "przychody") {
-        pobierz(typ).then(function(wyniki) {
-            test1(typ, wyniki);
-        });
+
+        if (typ === "wydatki"){
+            document.getElementById("przychody").innerHTML = "";
+        }
+        else if (typ === "przychody"){
+            document.getElementById("wydatki").innerHTML = "";
+        }
+        pobierz(typ, data_od, data_do)
+            .then(function(wyniki) {
+                test1(typ, wyniki);
+            })
+            .catch(function(error) {
+                console.error("Błąd filtrowania:", error);
+            });
+
     }
 
     else if (typ === "all") {
+
         Promise.all([
-            pobierz("wydatki"),
-            pobierz("przychody")
-        ]).then(function(wyniki) {
+            pobierz("wydatki", data_od, data_do),
+            pobierz("przychody", data_od, data_do)
+        ])
+        .then(function(wyniki) {
 
             const wydatki = wyniki[0];
             const przychody = wyniki[1];
@@ -255,9 +269,38 @@ document.getElementById("filtr").addEventListener("submit", function(event) {
             test1("wydatki", wydatki);
             test1("przychody", przychody);
 
+        })
+        .catch(function(error) {
+            console.error("Błąd filtrowania:", error);
         });
+
     }
+}
+
+
+// Obsługa formularza
+
+document.getElementById("filtr").addEventListener("submit", function(event) {
+
+    event.preventDefault();
+
+    const data_od = document.getElementById("data_od").value;
+    const data_do = document.getElementById("data_do").value;
+    const typ = document.getElementById("filtr_typ").value;
+
+    filtruj(typ, data_od, data_do);
+
 });
 
-    
+function genruj_wykres_slupkowy(rok){
+    backend.generuj_wykres_slupkowy(rok,function (gut){
+        if (gut === true){
+            const kontener = document.getElementById("z");
+            const i = document.createElement("img")
+            i.src = "./wykresy/wykres.png"
+            kontener.appendChild(i);
+        }
+    })
+
+}
 </script>

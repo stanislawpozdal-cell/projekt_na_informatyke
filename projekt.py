@@ -1,6 +1,7 @@
-import matplotlib
+import matplotlib.pyplot as plt
 import sys
 
+import numpy as np
 from PySide6.QtCore import QUrl, QObject
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -46,6 +47,9 @@ class Backend(QObject):
         podatek DECIMAL ,
         data DATE NOT NULL)""")
         self.conn.commit()
+
+        self.folder_path = Path("wykresy")
+        self.folder_path.mkdir(parents=True, exist_ok=True)
         
 
     @Slot(str,int,result=bool)
@@ -72,28 +76,21 @@ class Backend(QObject):
             return False
 
     @Slot(str, str, str, result="QVariantList")
-    def filtruj(self, rok, miesiac, typ):
+    def filtruj(self, data_od, data_do, typ):
 
-        kolumny = {
-            "wydatki": "data",
-            "przychody": "data"
-        }
-
-        if typ not in kolumny:
+        if typ not in ["wydatki", "przychody"]:
             return []
 
         self.cursor.execute(
             f"""
             SELECT * FROM {typ}
-            WHERE strftime('%Y', data) = ?
-            AND strftime('%m', data) = ?
+            WHERE data >= ? AND data <= ?
             ORDER BY data DESC
             """,
-            (rok, miesiac.zfill(2))
+            (data_od, data_do)
         )
 
         return [list(x) for x in self.cursor.fetchall()]
-
 
 
     @Slot(str, result="QVariantList")
@@ -125,6 +122,59 @@ class Backend(QObject):
     @Slot()
     def test(self):
         print("wywołanie funkcji")
+
+    def oblicz(self, rok, tabela):
+        buffer = []
+
+        if tabela not in ["wydatki", "przychody"]:
+            return []
+
+        for i in range(1, 13):
+            self.cursor.execute(f"""
+                SELECT * FROM {tabela}
+                WHERE strftime('%Y', data) = ?
+                AND strftime('%m', data) = ?
+                ORDER BY data DESC
+            """, (str(rok), str(i).zfill(2)))
+
+            buffer.append(sum(x[2] for x in self.cursor.fetchall()))
+
+        return buffer
+
+
+
+
+    @Slot(int,result=bool)
+    def generuj_wykres_slupkowy(self,rok):
+        print(rok)
+        miesiace_d = {1:"Styczeń",2:"Luty",3:"Marzeć",4:"Kwiecień",5:"Maj",6:"Czerwiec",7:"Lipiec",8:"Sierpień",9:"Wrzesień",10:"Październik",11:"Listopad",12:"Grudzień"}
+        miesiace = list(miesiace_d.values())
+        wydatki = self.oblicz(rok,'wydatki')
+        przychody = self.oblicz(rok,'przychody')
+        x = np.arange(len(miesiace))
+        szerokosc = 0.35
+
+        plt.figure(figsize=(10, 5))
+
+        slupki =plt.bar(x - szerokosc / 2, wydatki, szerokosc, label="Wydatki")
+        slupki1 =plt.bar(x + szerokosc / 2, przychody, szerokosc, label="Przychody")
+
+        plt.bar_label(slupki, fmt="%.0f zł", padding=3)
+        plt.bar_label(slupki1, fmt="%.0f zł", padding=3)
+
+        plt.xticks(x, miesiace)
+        plt.ylabel("Kwota (zł)")
+        plt.title("Porównanie przychodów i wydatków")
+        plt.legend()
+
+        plt.tight_layout()
+        plt.savefig("./wykresy/wykres.png", dpi=150, bbox_inches="tight")
+        plt.close()
+
+        return True
+
+
+
 
 
 #ustawienia okna
