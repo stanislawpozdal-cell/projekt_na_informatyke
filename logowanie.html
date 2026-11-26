@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+</head>
+<body>
+    <form action="" id="logowanie" >
+        <label id="login_l" for="login">Podaj login</label>
+        <input type="email" name="" id="login">
+        <label id="password_l" for="haslo">Podaj hasło</label>
+        <input type="password" name="" id="haslo">
+        <button type="submit" >Zaloguj się</button>
+    </form>
+    <button type="button" onclick="load_r_p()">kliknij jeżeli chcesz stworzyć konto</button>
+
+
+</body>
+</html>
+
+<script>
+    let backend;
+
+    new QWebChannel(qt.webChannelTransport, function(channel) {
+        backend = channel.objects.backend;
+    });
+
+    function load_r_p(){
+        backend.load_register_page(function (){
+    })}
+
+    document.getElementById("logowanie").addEventListener("submit",function(event){
+        event.preventDefault();
+        const login = document.getElementById("login").value;
+        const password = document.getElementById("haslo").value;
+
+        backend.parse_password(login,password, function(wynik){
+            if (wynik){
+                backend.load_index_page();
+            }
+            else{
+                document.getElementById("login_l").innerHTML = "Zły login lub hasło";
+                document.getElementById("password_l").innerHTML = "Zły login lub hasło";
+                document.getElementById("haslo").value = "";
+
+            }
+
+        });
+
+    })
+
+
+
+
+</script>

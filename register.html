@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+</head>
+<body>
+    <form action="" id="register" >
+        <label id="l_login" for="login">Podaj login (email) </label>
+        <input type="email" name="" id="login">
+        <label id="l_haslo" for="haslo">Podaj hasło</label>
+        <input type="password" name="" id="haslo">
+        <label id="l_haslo1" for="haslo_powtorka">Powtórz hasło</label>
+        <input  type="password" name="" id="haslo_powtorka">
+        <button type="submit" >Zarejestruj się </button>
+      
+
+    </form>
+
+
+</body>
+</html>
+
+<script>
+    let backend;
+
+    new QWebChannel(qt.webChannelTransport, function(channel) {
+        backend = channel.objects.backend;
+    });
+
+    
+
+    document.getElementById("register").addEventListener("submit",function(event) {
+        event.preventDefault()
+        const haslo = document.getElementById("haslo").value;
+        const haslo_p = document.getElementById("haslo_powtorka").value;
+        const email = document.getElementById("login").value;
+        if (haslo !== haslo_p){
+            document.getElementById("l_haslo").innerText = "hasła nie są takie same";
+            document.getElementById("l_haslo1").innerText = "hasła nie są takie same";
+        }
+        else{
+            backend.register_user(email,haslo, function(wynik){
+                if (wynik){
+                    backend.load_register_page();
+                }
+                else {
+                    document.getElementById("l_login").innerText = "ten użytkownik już istnieje";
+                }
+            })
+            
+        }
+    })
+
+
+
+
+</script>

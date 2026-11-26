@@ -10,25 +10,38 @@ import sqlite3
 from pathlib import Path
 from PySide6.QtCore import QObject, Slot, QUrl
 from datetime import date
+import os
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import hashlib
 
 
 
+def generuj_klucz(haslo, salt):
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,  # AES-256 = 32 bajty
+        salt=salt,
+        iterations=1_200_000
+    )
 
+    return kdf.derive(haslo.encode("utf-8"))
 
 
 
 
 class Backend(QObject):
 
-    def __init__(self,):
+    def __init__(self,okno):
         super().__init__()
+        self.okno = okno
+        self.haslo = ""
         self.conn = sqlite3.connect("wydatki.db")
         self.cursor = self.conn.cursor()
-        self.cursor.execute("""    CREATE TABLE IF NOT EXISTS users (
+        self.cursor.execute("""CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
         email TEXT UNIQUE,
-        age INTEGER
+        password TEXT
         )""")
         self.conn.commit()
         self.cursor.execute("""
@@ -50,6 +63,52 @@ class Backend(QObject):
 
         self.folder_path = Path("wykresy")
         self.folder_path.mkdir(parents=True, exist_ok=True)
+
+    @Slot()
+    def load_register_page(self):
+        print("Loading register page")
+        register_page = Path(__file__).parent / "register.html"
+        self.okno.load(QUrl.fromLocalFile(register_page.resolve()))
+
+    @Slot()
+    def load_index_page(self):
+        print("Loading index page")
+        index_page = Path(__file__).parent / "index.html"
+        self.okno.load(QUrl.fromLocalFile(index_page.resolve()))
+
+
+    @Slot(str,str, result=bool)
+    def parse_password(self,login,password):
+        try:
+            self.cursor.execute("""
+            SELECT * FROM users WHERE email = ?""",(login,))
+            user = self.cursor.fetchone()
+            if user[2] == hashlib.sha256(password.encode()).hexdigest():
+                print(True)
+                self.haslo = password
+                return True
+            else:
+                print(False)
+                return False
+        except Exception as e:
+            print(e)
+            return False
+
+    @Slot(str,str,result=bool)
+    def register_user(self, email, password):
+        try:
+            self.cursor.execute("""
+            INSERT INTO users (email, password) VALUES (?, ?)""",
+                            (email, hashlib.sha256(password.encode("utf-8")).hexdigest()))
+            self.conn.commit()
+            return True
+        except Exception as e :
+            print(e)
+            return False
+
+
+
+
         
 
     @Slot(str,int,result=bool)
@@ -234,19 +293,21 @@ class Backend(QObject):
 #ustawienia okna
 
 app = QApplication(sys.argv)
-backend = Backend()
 
 
-print(backend.return_data("wydatki"))
+
+
 
 okno = QWebEngineView()
+backend = Backend(okno)
 channel = QWebChannel()
 channel.registerObject("backend",backend)
 okno.page().setWebChannel(channel)
 okno.setWindowTitle("Aplikacja do wydatków")
 okno.resize(1000, 700)
 sciezka = Path(__file__).parent / "index.html"
-okno.load(QUrl.fromLocalFile(sciezka.resolve()))
+logowanie = Path(__file__).parent / "logowanie.html"
+okno.load(QUrl.fromLocalFile(logowanie.resolve()))
 okno.show()
 
 
